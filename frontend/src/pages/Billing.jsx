@@ -109,6 +109,15 @@ export default function Billing() {
     setSearchParams({ plan: plan.code });
   };
 
+  const closeCheckout = () => {
+    setSelected(null);
+    setQuote(null);
+    sessionStorage.removeItem('meetflow_selected_plan');
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.delete('plan');
+    setSearchParams(nextParams, { replace: true });
+  };
+
   const getQuote = async () => {
     setWorking(true);
     try {
@@ -124,8 +133,7 @@ export default function Billing() {
       const data = await billingService.checkout({ plan_code: selected.code, operator, phone_number: phone });
       setPendingId(data.payment.id);
       setPayments((items) => [data.payment, ...items]);
-      setSelected(null); setQuote(null);
-      sessionStorage.removeItem('meetflow_selected_plan');
+      closeCheckout();
       notify.info('Validez maintenant la demande USSD sur votre téléphone.');
     } catch (error) { notify.error(error.message); }
     finally { setWorking(false); }
@@ -160,7 +168,7 @@ export default function Billing() {
       </div>
     </main>
 
-    <Modal open={Boolean(selected)} onClose={() => { setSelected(null); setQuote(null); }} title={selected ? `Souscrire à l’offre ${selected.name}` : 'Souscrire'} footer={<><Button variant="secondary" onClick={() => { setSelected(null); setQuote(null); }}>Annuler</Button>{quote ? <Button loading={working} onClick={pay}>Payer {selected && formatMoney(selected.amount_xaf)}</Button> : <Button loading={working} onClick={getQuote}>Vérifier le montant</Button>}</>}>
+    <Modal open={Boolean(selected)} onClose={closeCheckout} title={selected ? `Souscrire à l’offre ${selected.name}` : 'Souscrire'} footer={<><Button variant="secondary" onClick={closeCheckout}>Annuler</Button>{quote ? <Button loading={working} onClick={pay}>Payer {selected && formatMoney(selected.amount_xaf)}</Button> : <Button loading={working} onClick={getQuote}>Vérifier le montant</Button>}</>}>
       {selected && <div className="space-y-5"><div className="rounded-xl bg-fond p-4"><div className="flex items-center justify-between"><span className="text-sm text-encre-sourde">Abonnement mensuel</span><strong className="text-lg text-encre">{formatMoney(selected.amount_xaf)}</strong></div></div><div><p className="mb-2 text-xs font-semibold text-encre-douce">Moyen de paiement</p><div className="grid grid-cols-2 gap-3"><OperatorButton label="MTN MoMo" active={operator === 'mtn'} onClick={() => { setOperator('mtn'); setQuote(null); }} /><OperatorButton label="Orange Money" active={operator === 'orange'} onClick={() => { setOperator('orange'); setQuote(null); }} /></div></div><Input label="Numéro Mobile Money" inputMode="tel" value={phone} onChange={(event) => { setPhone(event.target.value); setQuote(null); }} placeholder="6XX XXX XXX" hint="Le téléphone recevra une demande de confirmation sécurisée." />{quote && <QuoteSummary quote={quote} amount={selected.amount_xaf} />}</div>}
     </Modal>
   </>;
