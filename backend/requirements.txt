@@ -1,0 +1,38 @@
+# ── Framework Web ─────────────────────────────────────────────────────────────
+Flask==3.0.3
+Flask-CORS==4.0.1
+Flask-SQLAlchemy==3.1.1
+
+# ── Base de données ────────────────────────────────────────────────────────────
+SQLAlchemy==2.0.31
+# Pour MySQL (décommentez si vous utilisez MySQL au lieu de SQLite) :
+# PyMySQL==1.1.1
+
+# ── Authentification ───────────────────────────────────────────────────────────
+PyJWT==2.8.0
+Werkzeug==3.0.3         # Inclut generate_password_hash / check_password_hash
+
+# ── IA – Transcription ─────────────────────────────────────────────────────────
+faster-whisper==1.2.1   # Transcription audio; compatible Python 3.13 / PyAV récent
+
+# ── IA – LLM NVIDIA NIM et embeddings locaux ──────────────────────────────────
+openai==2.54.0          # Client compatible avec l'API NVIDIA NIM
+requests==2.32.3        # Requêtes HTTP vers Ollama (embeddings uniquement)
+
+# ── IA – Base vectorielle ──────────────────────────────────────────────────────
+chromadb==1.5.9         # Stockage des embeddings RAG; compatible Python 3.13
+
+# ── Export ────────────────────────────────────────────────────────────────────
+reportlab==4.2.2        # Génération des PDF
+
+# ── Utilitaires ───────────────────────────────────────────────────────────────
+python-dotenv==1.0.1    # Lecture des variables d'environnement depuis .env
+mutagen==1.47.0         # Lecture de la durée des fichiers audio
+# ── Serveur de production
+gunicorn==22.0.0
+chardet==5.2.0          # Compatible with both ReportLab and Requests
+# ── Développement uniquement (ne pas installer en production) ──────────────────
+# pytest==8.2.2
+# pytest-flask==1.3.0
+# black==24.4.2
+# flake8==7.0.0

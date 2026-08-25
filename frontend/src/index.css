@@ -1,0 +1,91 @@
+@import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+
+@theme {
+  /* Palette MeetFlow : surfaces claires, neutres froids et indigo. */
+  --color-fond: #f6f7fb;
+  --color-fond-doux: #fbfcfe;
+  --color-surface: #ffffff;
+  --color-surface-haute: #f2f4f8;
+  --color-liseret: #e6e8ef;
+  --color-liseret-clair: #d7dae4;
+
+  --color-bordeaux-950: #17208a;
+  --color-bordeaux-900: #1e2bb8;
+  --color-bordeaux-800: #2233d1;
+  --color-bordeaux-700: #263bd8;
+  --color-bordeaux-600: #3047e5;
+  --color-bordeaux-500: #4058ed;
+  --color-bordeaux-400: #6f82f4;
+
+  --color-brun-900: #252936;
+  --color-brun-800: #343846;
+  --color-brun-700: #484d5e;
+  --color-brun-600: #5d6375;
+
+  --color-taupe-900: #303440;
+  --color-taupe-700: #697083;
+  --color-taupe-500: #8d94a5;
+  --color-taupe-400: #a8aeba;
+  --color-taupe-300: #c9cdd6;
+
+  --color-encre: #181a1f;
+  --color-encre-douce: #444958;
+  --color-encre-sourde: #71788a;
+
+  --font-display: 'Inter', 'Segoe UI', sans-serif;
+  --font-corps: 'Inter', 'Segoe UI', sans-serif;
+  --font-donnees: 'IBM Plex Mono', 'Consolas', monospace;
+}
+
+html {
+  color-scheme: light;
+  background: var(--color-fond);
+}
+
+html, body, #root {
+  max-width: 100%;
+  overflow-x: clip;
+}
+
+body {
+  margin: 0;
+  background-color: var(--color-fond);
+  color: var(--color-encre);
+  font-family: var(--font-corps);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-liseret-clair) transparent;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-thumb {
+  background-color: var(--color-taupe-300);
+  border-radius: 999px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-bordeaux-500);
+  outline-offset: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+  }
+}

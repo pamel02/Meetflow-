@@ -1,0 +1,66 @@
+# ── Assistant IA de Réunion – Docker Compose ──────────────────────────────────
+# Lance l'ensemble du projet avec une seule commande : docker compose up
+
+services:
+
+  # ── Backend Flask ────────────────────────────────────────────────────────────
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: reunion-backend
+    restart: unless-stopped
+    env_file:
+      - ./backend/.env
+    environment:
+      FLASK_ENV: production
+    volumes:
+      - backend_data:/app/data
+      - backend_uploads:/app/uploads
+      - backend_exports:/app/exports
+      - backend_logs:/app/logs
+    expose:
+      - "5000"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/api/live"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 90s
+    extra_hosts:
+      # Permet au conteneur de résoudre host.docker.internal vers l'IP
+      # de la machine hôte (nécessaire pour joindre les embeddings Ollama qui tournent
+      # dans WSL2/Windows en dehors du réseau Docker).
+      - "host.docker.internal:host-gateway"
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_BASE_URL: /api
+    container_name: reunion-frontend
+    restart: unless-stopped
+    expose:
+      - "80"
+    depends_on:
+      backend:
+        condition: service_healthy
+
+  nginx:
+    image: nginx:alpine
+    container_name: reunion-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    volumes:
+      - ./docker/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - backend
+      - frontend
+
+volumes:
+  backend_data:
+  backend_uploads:
+  backend_exports:
+  backend_logs:
