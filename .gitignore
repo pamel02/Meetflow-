@@ -29,6 +29,7 @@ frontend/node_modules/
 frontend/dist/
 frontend/.vite/
 frontend/*-check*.png
+frontend/landing-mobile-final.png
 npm-debug.log*
 
 # IDE / OS
