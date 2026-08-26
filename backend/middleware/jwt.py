@@ -67,22 +67,31 @@ def jwt_required(f):
         auth_header = request.headers.get("Authorization", "")
 
         if not auth_header.startswith("Bearer "):
-            return jsonify({"error": "Token manquant ou mal formé"}), 401
+            return jsonify({
+                "error": "Token manquant ou mal formé",
+                "code": "TOKEN_MISSING",
+            }), 401
 
         token = auth_header.split(" ", 1)[1]
 
         try:
             payload = decode_token(token)
         except jwt.ExpiredSignatureError:
-            return jsonify({"error": "Token expiré, veuillez vous reconnecter"}), 401
+            return jsonify({
+                "error": "Token expiré, veuillez vous reconnecter",
+                "code": "TOKEN_EXPIRED",
+            }), 401
         except jwt.InvalidTokenError:
-            return jsonify({"error": "Token invalide"}), 401
+            return jsonify({"error": "Token invalide", "code": "TOKEN_INVALID"}), 401
 
         user_id = int(payload.get("sub", 0))
         user = UserRepository.find_by_id(user_id)
 
         if not user:
-            return jsonify({"error": "Utilisateur introuvable"}), 401
+            return jsonify({
+                "error": "Utilisateur introuvable",
+                "code": "TOKEN_USER_NOT_FOUND",
+            }), 401
 
         # Injecte l'utilisateur dans la fonction de la route
         kwargs["current_user"] = user

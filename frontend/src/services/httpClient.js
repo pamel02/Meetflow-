@@ -61,6 +61,13 @@ function extractMessage(payload, fallback) {
 }
 
 let onUnauthorized = null;
+const SESSION_AUTH_CODES = new Set([
+  'TOKEN_MISSING',
+  'TOKEN_EXPIRED',
+  'TOKEN_INVALID',
+  'TOKEN_USER_NOT_FOUND',
+]);
+
 export function registerUnauthorizedHandler(fn) {
   onUnauthorized = fn;
 }
@@ -95,8 +102,12 @@ export async function request(path, options = {}) {
     );
   }
 
-  if (response.status === 401 && auth) {
-    if (onUnauthorized) onUnauthorized();
+  if (response.status === 401) {
+    const payload = await response.json().catch(() => null);
+    if (auth && SESSION_AUTH_CODES.has(payload?.code) && onUnauthorized) {
+      onUnauthorized();
+    }
+    throw new ApiError(extractMessage(payload, 'Accès non autorisé.'), 401, payload);
   }
 
   if (response.status === 202) {
