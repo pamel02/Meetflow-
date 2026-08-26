@@ -16,6 +16,12 @@ class ChatService:
         Répond à une question portant sur TOUTES les réunions de l'utilisateur.
         Exemple : "Quels sujets reviennent le plus souvent ?"
         """
+        from services.billing_service import BillingService
+
+        entitlement = BillingService.entitlement(user, "chat")
+        if entitlement:
+            return entitlement
+
         question = (data.get("question") or "").strip()
         if not question:
             return {"error": "La question est requise."}, 400
@@ -46,6 +52,12 @@ class ChatService:
         Répond à une question sur UNE réunion spécifique.
         Exemple : "Qui devait finir le backend ?"
         """
+        from services.billing_service import BillingService
+
+        entitlement = BillingService.entitlement(user, "chat")
+        if entitlement:
+            return entitlement
+
         question = (data.get("question") or "").strip()
         if not question:
             return {"error": "La question est requise."}, 400

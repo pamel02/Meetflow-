@@ -13,6 +13,7 @@ from sqlalchemy import func
 
 from database.database import db
 from integrations.riserva_client import RiservaClient, RiservaError
+from models.AudioSegment import AudioSegment
 from models.Billing import Payment, Plan, Subscription
 from models.Meeting import Meeting
 from models.Organization import Membership
@@ -79,13 +80,29 @@ class BillingService:
             return error
         subscription = cls._active_subscription(membership.organization_id)
         used_seconds = cls._used_transcription_seconds(membership.organization_id, subscription)
+        if not subscription:
+            used_seconds = db.session.query(
+                func.coalesce(func.sum(AudioSegment.duration), 0)
+            ).join(Meeting, Meeting.id == AudioSegment.meeting_id).filter(
+                Meeting.organization_id == membership.organization_id
+            ).scalar() or 0
         used_minutes = round(used_seconds / 60, 1)
-        quota_minutes = subscription.plan.transcription_minutes if subscription else 0
+        quota_minutes = (
+            subscription.plan.transcription_minutes
+            if subscription
+            else current_app.config.get("FREE_TRIAL_MINUTES", 10)
+        )
         usage = {
             "members": Membership.query.filter_by(organization_id=membership.organization_id).count(),
             "transcription_minutes": used_minutes,
             "transcription_minutes_remaining": max(round(quota_minutes - used_minutes, 1), 0),
             "transcription_quota_exhausted": bool(subscription and used_minutes >= quota_minutes),
+            "trial_meeting_available": bool(
+                not subscription and membership.organization.trial_started_at is None
+            ),
+            "trial_started": bool(
+                not subscription and membership.organization.trial_started_at is not None
+            ),
         }
         return {
             "subscription": subscription.to_dict() if subscription else None,
@@ -314,24 +331,88 @@ class BillingService:
         return {"received": True}, 200
 
     @classmethod
-    def entitlement(cls, user, kind):
-        """Retourne None si autorisé, sinon une réponse API. Désactivé par défaut."""
+    def entitlement(cls, user, kind, additional_seconds=0):
+        """Autorise l'essai gratuit, puis protège les fonctions premium."""
         if not current_app.config.get("BILLING_ENFORCEMENT_ENABLED", False):
             return None
         membership = OrganizationService.membership_for(user)
-        subscription = cls._active_subscription(membership.organization_id) if membership else None
+        if not membership:
+            return {
+                "error": "Configurez d'abord votre espace entreprise.",
+                "code": "ONBOARDING_REQUIRED",
+            }, 428
+
+        subscription = cls._active_subscription(membership.organization_id)
         if not subscription or subscription.status != "ACTIVE":
-            return {"error": "Un abonnement actif est nécessaire.", "code": "SUBSCRIPTION_REQUIRED"}, 402
+            if kind == "meeting":
+                if membership.organization.trial_started_at is None:
+                    return None
+                return {
+                    "error": "Votre réunion d'essai a déjà été utilisée. Choisissez une offre pour continuer.",
+                    "code": "FREE_TRIAL_USED",
+                    "payment_required": True,
+                }, 402
+
+            if kind == "audio":
+                used_seconds = db.session.query(
+                    func.coalesce(func.sum(AudioSegment.duration), 0)
+                ).join(Meeting, Meeting.id == AudioSegment.meeting_id).filter(
+                    Meeting.organization_id == membership.organization_id
+                ).scalar() or 0
+                limit_minutes = current_app.config.get("FREE_TRIAL_MINUTES", 10)
+                if used_seconds + max(float(additional_seconds or 0), 0) <= limit_minutes * 60:
+                    return None
+                return {
+                    "error": f"Les {limit_minutes} minutes de votre essai gratuit sont épuisées. Choisissez une offre pour continuer.",
+                    "code": "FREE_TRIAL_LIMIT_REACHED",
+                    "payment_required": True,
+                    "trial_minutes": limit_minutes,
+                }, 402
+
+            code = "REPORT_PAYMENT_REQUIRED" if kind == "report" else "SUBSCRIPTION_REQUIRED"
+            message = (
+                "Votre compte rendu est prêt. Choisissez une offre pour le consulter et le recevoir par e-mail."
+                if kind == "report"
+                else "Un abonnement actif est nécessaire pour utiliser cette fonctionnalité."
+            )
+            return {"error": message, "code": code, "payment_required": True}, 402
         if kind == "member":
             count = Membership.query.filter_by(organization_id=membership.organization_id).count()
             if count >= subscription.plan.max_members:
                 return {"error": "La limite de membres de votre offre est atteinte.", "code": "MEMBER_LIMIT_REACHED"}, 402
-        if kind == "meeting":
+        if kind in {"meeting", "audio"}:
             seconds = cls._used_transcription_seconds(membership.organization_id, subscription)
-            if seconds / 60 >= subscription.plan.transcription_minutes:
+            if kind == "audio":
+                seconds = db.session.query(
+                    func.coalesce(func.sum(AudioSegment.duration), 0)
+                ).join(Meeting, Meeting.id == AudioSegment.meeting_id).filter(
+                    Meeting.organization_id == membership.organization_id,
+                    Meeting.created_at >= subscription.current_period_start,
+                ).scalar() or 0
+            quota_seconds = subscription.plan.transcription_minutes * 60
+            quota_reached = (
+                seconds >= quota_seconds
+                if kind == "meeting"
+                else seconds + max(float(additional_seconds or 0), 0) > quota_seconds
+            )
+            if quota_reached:
                 return {
                     "error": "Votre pack de minutes est épuisé. Renouvelez une offre pour continuer à transcrire.",
                     "code": "TRANSCRIPTION_LIMIT_REACHED",
                     "renewal_required": True,
                 }, 402
         return None
+
+    @classmethod
+    def start_trial(cls, user):
+        """Mémorise l'essai au niveau entreprise afin qu'une suppression ne le réinitialise pas."""
+        if not current_app.config.get("BILLING_ENFORCEMENT_ENABLED", False):
+            return
+        membership = OrganizationService.membership_for(user)
+        if not membership or membership.organization.trial_started_at is not None:
+            return
+        subscription = cls._active_subscription(membership.organization_id)
+        if subscription and subscription.status == "ACTIVE":
+            return
+        membership.organization.trial_started_at = _utc_now()
+        db.session.commit()

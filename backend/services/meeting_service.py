@@ -28,6 +28,8 @@ class MeetingService:
         if not membership:
             return {"error": "Configurez votre espace entreprise avant de créer une réunion.", "code": "ONBOARDING_REQUIRED"}, 428
 
+        BillingService.start_trial(user)
+
         meeting = MeetingRepository.create(
             user_id=user.id,
             organization_id=membership.organization_id,
@@ -76,7 +78,9 @@ class MeetingService:
 
         if transcript:
             data["transcript"] = transcript.to_dict()
-        if summary:
+        from services.billing_service import BillingService
+
+        if summary and not BillingService.entitlement(user, "report"):
             data["summary"] = summary.to_dict()
 
         return {"meeting": data}, 200

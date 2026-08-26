@@ -39,6 +39,7 @@ class Config:
     RISERVA_TIMEOUT = int(os.getenv("RISERVA_TIMEOUT", "30"))
     PAYMENT_WEBHOOK_URL = os.getenv("PAYMENT_WEBHOOK_URL", "").strip()
     BILLING_ENFORCEMENT_ENABLED = os.getenv("BILLING_ENFORCEMENT_ENABLED", "false").lower() == "true"
+    FREE_TRIAL_MINUTES = int(os.getenv("FREE_TRIAL_MINUTES", "10"))
 
     # --- Sécurité ---
     SECRET_KEY = os.environ.get("SECRET_KEY", "change-me-in-production-please")

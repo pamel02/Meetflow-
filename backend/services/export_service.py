@@ -24,6 +24,13 @@ class ExportService:
         if not meeting:
             return {"error": "Réunion introuvable."}, 404, None
 
+        from services.billing_service import BillingService
+
+        entitlement = BillingService.entitlement(user, "report")
+        if entitlement:
+            payload, status = entitlement
+            return payload, status, None
+
         summary   = SummaryRepository.get_summary(meeting_id)
         if not summary:
             return {"error": "Le compte rendu n'est pas encore disponible."}, 202, None
@@ -70,6 +77,12 @@ class ExportService:
         meeting = MeetingRepository.find_by_id_and_user(meeting_id, user.id)
         if not meeting:
             return {"error": "Réunion introuvable."}, 404
+
+        from services.billing_service import BillingService
+
+        entitlement = BillingService.entitlement(user, "report")
+        if entitlement:
+            return entitlement
 
         transcript = SummaryRepository.get_transcript(meeting_id)
         summary    = SummaryRepository.get_summary(meeting_id)

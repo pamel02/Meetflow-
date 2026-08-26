@@ -10,13 +10,13 @@ import { useToast } from '../context/ToastContext';
  * Panneau d'envoi du compte rendu (PDF) par email a plusieurs destinataires
  * a la fois, affiche a cote de la transcription et du compte rendu IA.
  */
-export default function SendReportPanel({ meetingId, ready }) {
+export default function SendReportPanel({ meetingId, ready, locked = false, onUnlock }) {
   const [emails, setEmails] = useState([]);
   const [subject, setSubject] = useState('Compte rendu de reunion');
   const [sending, setSending] = useState(false);
   const { notify } = useToast();
 
-  const disabled = !ready;
+  const disabled = !ready || locked;
 
   const handleSend = async () => {
     if (emails.length === 0) {
@@ -43,6 +43,8 @@ export default function SendReportPanel({ meetingId, ready }) {
     <Card className="overflow-hidden">
       <CardHeader eyebrow="Export par email" title="Envoyer le PDF" />
       <div className="flex flex-col gap-4 p-5">
+        {locked && <><div className="rounded-2xl border border-bordeaux-400/30 bg-bordeaux-500/5 px-4 py-4"><p className="text-sm font-semibold text-encre">Envoi disponible après paiement</p><p className="mt-1 text-xs leading-relaxed text-encre-sourde">Débloquez le rapport pour recevoir le PDF et l’envoyer à vos collaborateurs.</p></div><Button onClick={onUnlock}>Voir les offres</Button></>}
+        {!locked && <>
         <p className="text-xs text-encre-sourde">
           Ajoutez une ou plusieurs adresses puis envoyez le compte rendu en PDF simultanement a tout le monde.
         </p>
@@ -63,6 +65,7 @@ export default function SendReportPanel({ meetingId, ready }) {
             ? `Envoyer a ${emails.length} destinataire${emails.length > 1 ? 's' : ''}`
             : 'Envoyer le compte rendu'}
         </Button>
+        </>}
       </div>
     </Card>
   );

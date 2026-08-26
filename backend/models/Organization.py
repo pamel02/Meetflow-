@@ -16,13 +16,14 @@ class Organization(db.Model):
     company_size = db.Column(db.String(30), nullable=True)
     country = db.Column(db.String(80), nullable=True)
     created_by = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+    trial_started_at = db.Column(db.DateTime, nullable=True)
     created_at = db.Column(db.DateTime, default=utc_now, nullable=False)
     updated_at = db.Column(db.DateTime, default=utc_now, onupdate=utc_now, nullable=False)
     memberships = db.relationship("Membership", back_populates="organization", cascade="all, delete-orphan")
     invitations = db.relationship("OrganizationInvitation", back_populates="organization", cascade="all, delete-orphan")
 
     def to_dict(self):
-        return {"id": self.id, "name": self.name, "sector": self.sector, "company_size": self.company_size, "country": self.country}
+        return {"id": self.id, "name": self.name, "sector": self.sector, "company_size": self.company_size, "country": self.country, "trial_started_at": self.trial_started_at.isoformat() if self.trial_started_at else None}
 
 
 class Membership(db.Model):

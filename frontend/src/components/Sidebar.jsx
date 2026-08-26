@@ -1,4 +1,4 @@
-import { NavLink } from 'react-router-dom';
+import { NavLink, useNavigate } from 'react-router-dom';
 import { useLayout } from '../context/LayoutContext';
 import { useAuth } from '../context/AuthContext';
 
@@ -25,7 +25,13 @@ function NavIcon({ name }) {
 
 export default function Sidebar() {
   const { sidebarOpen, closeSidebar } = useLayout();
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
+  const handleLogout = async () => {
+    closeSidebar();
+    await logout();
+    navigate('/connexion', { replace: true });
+  };
   return (
     <>
       <div onClick={closeSidebar} aria-hidden="true" className={`fixed inset-0 z-40 bg-encre/35 backdrop-blur-sm transition-opacity duration-200 md:hidden ${sidebarOpen ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'}`} />
@@ -47,7 +53,13 @@ export default function Sidebar() {
             </NavLink>
           ))}
         </nav>
-        <div className="m-4 rounded-xl border border-liseret bg-fond px-4 py-3.5"><p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-encre-sourde">Espace entreprise</p><p className="mt-1 truncate text-sm font-semibold text-encre">{user?.organization?.name || 'MeetFlow'}</p><p className="mt-1 text-xs capitalize text-encre-sourde">{user?.organization_role}</p></div>
+        <div className="m-4 overflow-hidden rounded-xl border border-liseret bg-fond">
+          <div className="px-4 py-3.5"><p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-encre-sourde">Espace entreprise</p><p className="mt-1 truncate text-sm font-semibold text-encre">{user?.organization?.name || 'MeetFlow'}</p><p className="mt-1 truncate text-xs text-encre-sourde">{user?.email}</p></div>
+          <button type="button" onClick={handleLogout} className="flex w-full items-center gap-2 border-t border-liseret px-4 py-3 text-left text-sm font-semibold text-encre-sourde transition hover:bg-red-50 hover:text-red-700">
+            <svg aria-hidden="true" viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M10 17l5-5-5-5M15 12H3"/><path d="M14 3h5a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-5"/></svg>
+            Se déconnecter
+          </button>
+        </div>
       </aside>
     </>
   );

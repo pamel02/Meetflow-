@@ -68,11 +68,21 @@ class AudioService:
             os.remove(filepath)
             return {"error": "Segment audio trop volumineux."}, 413
 
+        duration = get_audio_duration(filepath)
+        from services.billing_service import BillingService
+
+        entitlement = BillingService.entitlement(
+            user, "audio", additional_seconds=duration
+        )
+        if entitlement:
+            os.remove(filepath)
+            return entitlement
+
         segment = AudioRepository.create(
             meeting_id=meeting_id,
             segment_number=segment_number,
             filename=filepath,
-            duration=get_audio_duration(filepath),
+            duration=duration,
             file_size=file_size,
         )
         MeetingRepository.increment_segments(meeting)

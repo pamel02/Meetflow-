@@ -6,7 +6,7 @@ import MeetingCard from '../components/MeetingCard';
 import NewMeetingModal from '../components/NewMeetingModal';
 import Button from '../components/Button';
 import { Loader, SkeletonBlock } from '../components/Loader';
-import { meetingService, exportService } from '../services';
+import { meetingService, exportService, billingService } from '../services';
 import { useToast } from '../context/ToastContext';
 import { formatDuration, formatRelative } from '../utils/formatters';
 import { saveNotifyEmails } from '../utils/notifyEmails';
@@ -18,6 +18,7 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(null);
   const [modalOpen, setModalOpen] = useState(false);
+  const [billing, setBilling] = useState(null);
   const { notify } = useToast();
   const { user } = useAuth();
   const canOrganize = ['admin', 'organizer'].includes(user?.organization_role);
@@ -33,12 +34,14 @@ export default function Dashboard() {
     setLoading(true);
     setLoadError(null);
     try {
-      const [statsData, meetingsData] = await Promise.all([
+      const [statsData, meetingsData, billingData] = await Promise.all([
         meetingService.stats(),
         meetingService.list({ sortBy: 'created_at', sortDir: 'desc' }),
+        billingService.current(),
       ]);
       setStats(statsData.stats);
       setMeetings(meetingsData.meetings);
+      setBilling(billingData);
     } catch (err) {
       setLoadError(err.message);
     } finally {
@@ -55,7 +58,17 @@ export default function Dashboard() {
   }, [searchParams, canOrganize]);
 
   const handleCreate = async (title, description, notifyEmails = []) => {
-    const data = await meetingService.create(title, description);
+    let data;
+    try {
+      data = await meetingService.create(title, description);
+    } catch (error) {
+      if (error.status === 402) {
+        closeNewMeeting();
+        navigate('/facturation', { state: { subscriptionRequired: true, from: '/app' } });
+        return;
+      }
+      throw error;
+    }
     if (notifyEmails.length > 0) {
       saveNotifyEmails(data.meeting.id, notifyEmails);
     }
@@ -87,6 +100,7 @@ export default function Dashboard() {
       <TopBar title="Vue d’ensemble" />
       <main className="min-h-0 flex-1 overflow-y-auto px-4 py-7 sm:px-6 md:px-8">
         <div className="mx-auto w-full max-w-[1480px]">
+        {!loading && !billing?.subscription && <div className="mb-6 flex flex-col gap-4 rounded-2xl border border-bordeaux-400/30 bg-gradient-to-r from-bordeaux-500/8 to-white px-5 py-4 sm:flex-row sm:items-center sm:justify-between"><div><p className="text-sm font-bold text-encre">{billing?.usage?.trial_meeting_available ? 'Votre première réunion est offerte' : 'Votre essai a été utilisé'}</p><p className="mt-1 text-xs leading-relaxed text-encre-sourde">{billing?.usage?.trial_meeting_available ? 'Enregistrez jusqu’à 10 minutes et découvrez l’aperçu du rapport avant de choisir une offre.' : 'Choisissez une offre pour débloquer vos rapports et poursuivre vos réunions.'}</p></div>{billing?.usage?.trial_meeting_available ? <Button size="sm" onClick={() => setModalOpen(true)}>Démarrer mon essai</Button> : <Button size="sm" onClick={() => navigate('/facturation')}>Voir les offres</Button>}</div>}
         <div className="mb-8 flex flex-col justify-between gap-5 lg:flex-row lg:items-end">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.12em] text-bordeaux-700">Espace de travail</p>

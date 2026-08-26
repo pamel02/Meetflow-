@@ -11,6 +11,7 @@ from integrations.riserva_client import RiservaClient
 from models.Billing import Plan, Subscription
 from models.Meeting import Meeting
 from models.Organization import Membership
+from repositories.summary_repository import SummaryRepository
 from services.email_service import EmailService
 
 
@@ -141,14 +142,49 @@ def test_exhausted_minutes_require_a_new_payment_cycle(tmp_path, monkeypatch):
     assert renewed["transcription_quota_exhausted"] is False
 
 
-def test_application_is_blocked_until_subscription_is_paid(tmp_path, monkeypatch):
+def test_free_user_can_try_one_meeting_but_report_is_locked(tmp_path, monkeypatch):
     app = make_app(tmp_path)
     app.config["BILLING_ENFORCEMENT_ENABLED"] = True
     client = app.test_client()
     headers = account(client, monkeypatch)
 
-    blocked = client.get("/api/meetings", headers=headers)
-    assert blocked.status_code == 402
-    assert blocked.json["code"] == "SUBSCRIPTION_REQUIRED"
+    assert client.get("/api/meetings", headers=headers).status_code == 200
+
+    created = client.post("/api/meetings", headers=headers, json={"title": "Réunion d'essai"})
+    assert created.status_code == 201
+    meeting_id = created.json["meeting"]["id"]
+
+    second = client.post("/api/meetings", headers=headers, json={"title": "Deuxième réunion"})
+    assert second.status_code == 402
+    assert second.json["code"] == "FREE_TRIAL_USED"
+
+    with app.app_context():
+        meeting = db.session.get(Meeting, meeting_id)
+        meeting.status = "completed"
+        SummaryRepository.save_summary(
+            meeting_id,
+            "Le lancement est validé et trois actions prioritaires ont été retenues.",
+            ["Alice", "Bob"],
+            "Prochaine revue vendredi.",
+        )
+        SummaryRepository.save_actions(meeting_id, [{"content": "Préparer le lancement"}])
+
+    preview = client.get(f"/api/report/{meeting_id}", headers=headers)
+    assert preview.status_code == 200
+    assert preview.json["locked"] is True
+    assert preview.json["preview"]["actions_count"] == 1
+    assert "summary" not in preview.json
+    assert "summary" not in client.get(f"/api/meetings/{meeting_id}", headers=headers).json["meeting"]
+    assert client.get(f"/api/summary/{meeting_id}", headers=headers).status_code == 402
+
+    blocked_export = client.get(f"/api/export/json/{meeting_id}", headers=headers)
+    assert blocked_export.status_code == 402
+    assert blocked_export.json["code"] == "REPORT_PAYMENT_REQUIRED"
+
+    assert client.delete(f"/api/meetings/{meeting_id}", headers=headers).status_code == 200
+    after_delete = client.post("/api/meetings", headers=headers, json={"title": "Nouvel essai"})
+    assert after_delete.status_code == 402
+    assert after_delete.json["code"] == "FREE_TRIAL_USED"
+
     assert client.get("/api/billing/subscription", headers=headers).status_code == 200
     assert client.get("/api/billing/plans").status_code == 200

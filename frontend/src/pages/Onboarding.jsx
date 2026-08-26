@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import Button from '../components/Button';
 import Input from '../components/Input';
 import { useAuth } from '../context/AuthContext';
@@ -8,7 +8,6 @@ import { organizationService } from '../services';
 export default function Onboarding() {
   const { user, refreshProfile, logout } = useAuth();
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
   const [form, setForm] = useState({ name: '', sector: '', company_size: '', country: 'Cameroun' });
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -20,14 +19,8 @@ export default function Onboarding() {
     try {
       await organizationService.create(form);
       await refreshProfile();
-      const plan = searchParams.get('plan') || sessionStorage.getItem('meetflow_selected_plan');
-      sessionStorage.setItem('meetflow_activation_pending', 'true');
-      if (['starter', 'business', 'enterprise'].includes(plan)) {
-        sessionStorage.setItem('meetflow_selected_plan', plan);
-        navigate(`/facturation?plan=${plan}`, { replace: true, state: { activationRequired: true } });
-      } else {
-        navigate('/facturation', { replace: true, state: { activationRequired: true, subscriptionRequired: true } });
-      }
+      sessionStorage.removeItem('meetflow_activation_pending');
+      navigate('/app', { replace: true, state: { trialWelcome: true } });
     } catch (err) { setError(err.message); }
     finally { setLoading(false); }
   };
@@ -43,7 +36,7 @@ export default function Onboarding() {
           <p className="text-xs font-semibold uppercase tracking-[0.14em] text-bordeaux-400">Étape 2 sur 3</p>
           <h1 className="mt-4 text-3xl font-bold tracking-[-0.04em]">Créez votre espace entreprise</h1>
           <p className="mt-4 text-sm leading-relaxed text-white/65">Bonjour {user?.name}. Cet espace isolera vos réunions et accueillera les membres de votre équipe.</p>
-          <div className="mt-10 space-y-5"><Step number="1" title="Compte vérifié" done /><Step number="2" title="Entreprise et équipe" active /><Step number="3" title="Activation de l’abonnement" /></div>
+          <div className="mt-10 space-y-5"><Step number="1" title="Compte vérifié" done /><Step number="2" title="Entreprise et équipe" active /><Step number="3" title="Découvrez votre premier rapport" /></div>
         </aside>
         <form onSubmit={submit} className="p-7 sm:p-10">
           <h2 className="text-xl font-bold text-encre">Informations de l’entreprise</h2>

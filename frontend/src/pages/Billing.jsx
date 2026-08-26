@@ -6,7 +6,6 @@ import Input from '../components/Input';
 import Modal from '../components/Modal';
 import TopBar from '../components/TopBar';
 import { useToast } from '../context/ToastContext';
-import { useAuth } from '../context/AuthContext';
 import { billingService } from '../services';
 
 const FEATURES = {
@@ -20,7 +19,6 @@ export default function Billing() {
   const [searchParams, setSearchParams] = useSearchParams();
   const location = useLocation();
   const navigate = useNavigate();
-  const { logout } = useAuth();
   const { notify } = useToast();
   const [plans, setPlans] = useState([]);
   const [account, setAccount] = useState(null);
@@ -32,7 +30,7 @@ export default function Billing() {
   const [loading, setLoading] = useState(true);
   const [working, setWorking] = useState(false);
   const [pendingId, setPendingId] = useState(null);
-  const activationRequired = location.state?.activationRequired || sessionStorage.getItem('meetflow_activation_pending') === 'true';
+  const returnTo = location.state?.from || searchParams.get('retour') || sessionStorage.getItem('meetflow_payment_return_to') || '/app';
 
   const load = useCallback(async () => {
     try {
@@ -52,14 +50,8 @@ export default function Billing() {
   useEffect(() => { load(); }, [load]);
 
   useEffect(() => {
-    if (!activationRequired || account?.subscription?.status !== 'ACTIVE') return;
-    sessionStorage.removeItem('meetflow_activation_pending');
-    sessionStorage.removeItem('meetflow_selected_plan');
-    logout(true).then(() => navigate('/connexion', {
-      replace: true,
-      state: { activationMessage: 'Paiement confirmé. Votre entreprise est activée : connectez-vous pour accéder à MeetFlow.' },
-    }));
-  }, [activationRequired, account?.subscription?.status, logout, navigate]);
+    if (location.state?.from) sessionStorage.setItem('meetflow_payment_return_to', location.state.from);
+  }, [location.state?.from]);
 
   useEffect(() => {
     if (!plans.length || selected) return;
@@ -78,18 +70,14 @@ export default function Billing() {
         if (['COMPLETED', 'FAILED', 'REVERSED'].includes(data.payment.status)) {
           clearInterval(timer);
           setPendingId(null);
-          if (data.payment.status === 'COMPLETED' && activationRequired) {
+          await load();
+          if (data.payment.status === 'COMPLETED') {
             sessionStorage.removeItem('meetflow_activation_pending');
             sessionStorage.removeItem('meetflow_selected_plan');
-            await logout(true);
-            navigate('/connexion', {
-              replace: true,
-              state: { activationMessage: 'Paiement confirmé. Votre entreprise est activée : connectez-vous pour accéder à MeetFlow.' },
-            });
-            return;
+            sessionStorage.removeItem('meetflow_payment_return_to');
+            notify.success('Paiement confirmé. Votre rapport est maintenant déverrouillé.');
+            navigate(returnTo, { replace: true, state: { paymentConfirmed: true } });
           }
-          await load();
-          if (data.payment.status === 'COMPLETED') notify.success('Paiement confirmé. Votre abonnement est actif.');
           else notify.error(data.payment.failure_reason || 'Le paiement n’a pas abouti.');
         }
       } catch {
@@ -102,7 +90,7 @@ export default function Billing() {
       }
     }, 4000);
     return () => clearInterval(timer);
-  }, [pendingId, load, activationRequired, logout, navigate]);
+  }, [pendingId, load, navigate, notify, returnTo]);
 
   const choosePlan = (plan) => {
     setSelected(plan); setQuote(null);
@@ -149,9 +137,9 @@ export default function Billing() {
           <span className={`w-fit rounded-full px-3 py-1.5 text-xs font-semibold ${account?.mode === 'LIVE' ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>{account?.mode === 'LIVE' ? 'Mode réel' : 'Mode sandbox'}</span>
         </div>
 
-        {location.state?.subscriptionRequired && !activationRequired && <div className="mt-6 rounded-2xl border border-bordeaux-400/30 bg-bordeaux-500/5 px-5 py-4 text-sm text-bordeaux-800"><strong>Abonnement requis :</strong> choisissez et réglez une offre pour accéder aux réunions, aux rapports et à l’assistant IA.</div>}
+        {location.state?.subscriptionRequired && <div className="mt-6 rounded-2xl border border-bordeaux-400/30 bg-bordeaux-500/5 px-5 py-4 text-sm text-bordeaux-800"><strong>Abonnement requis :</strong> choisissez et réglez une offre pour continuer à utiliser les fonctions premium.</div>}
+        {location.state?.reportUnlock && <div className="mt-6 rounded-2xl border border-bordeaux-400/30 bg-bordeaux-500/5 px-5 py-4 text-sm text-bordeaux-800"><strong>Votre compte rendu est prêt :</strong> choisissez une offre pour le consulter, le télécharger et l’envoyer par e-mail. Vous reviendrez automatiquement au rapport après le paiement.</div>}
         {(location.state?.quotaExhausted || account?.usage?.transcription_quota_exhausted) && <div className="mt-6 rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4 text-sm text-amber-900"><strong>Pack de minutes épuisé :</strong> choisissez et réglez de nouveau une offre pour continuer à enregistrer et transcrire vos réunions.</div>}
-        {activationRequired && <div className="mt-6 rounded-2xl border border-bordeaux-400/30 bg-bordeaux-500/5 px-5 py-4 text-sm text-bordeaux-800"><strong>Étape 3 sur 3 — Activation :</strong> choisissez et réglez une offre. Après confirmation, vous reviendrez à la connexion pour ouvrir votre espace MeetFlow.</div>}
 
         {!loading && !account?.provider_ready && <div className="mt-6 rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4 text-sm text-amber-900"><strong>Connexion au paiement incomplète :</strong> {account?.provider_configuration_error || 'Ajoutez la clé Riserva dans backend/.env.'} L’interface et les abonnements restent consultables.</div>}
 

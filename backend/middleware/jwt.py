@@ -84,26 +84,6 @@ def jwt_required(f):
         if not user:
             return jsonify({"error": "Utilisateur introuvable"}), 401
 
-        # En mode SaaS payant, seules l'authentification, la création de
-        # l'entreprise et la facturation restent accessibles avant paiement.
-        if current_app.config.get("BILLING_ENFORCEMENT_ENABLED", False):
-            exempt_endpoints = {
-                "organizations.create_organization",
-                "organizations.current_organization",
-            }
-            endpoint = request.endpoint or ""
-            is_exempt = (
-                endpoint.startswith("auth.")
-                or endpoint.startswith("billing.")
-                or endpoint in exempt_endpoints
-            )
-            if not is_exempt:
-                from services.billing_service import BillingService
-                entitlement = BillingService.entitlement(user, "access")
-                if entitlement:
-                    payload, status = entitlement
-                    return jsonify(payload), status
-
         # Injecte l'utilisateur dans la fonction de la route
         kwargs["current_user"] = user
         return f(*args, **kwargs)

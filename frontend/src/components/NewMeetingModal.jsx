@@ -65,7 +65,7 @@ export default function NewMeetingModal({ open, onClose, onCreate }) {
             Envoi automatique du compte rendu
           </p>
           <p className="mt-1 mb-3 text-xs text-encre-sourde">
-            Des destinataires facultatifs a qui le PDF sera envoye automatiquement des qu'il sera pret.
+            Des destinataires facultatifs à qui le PDF sera envoyé une fois le rapport disponible et déverrouillé.
           </p>
           <EmailChipsField emails={notifyEmails} onChange={setNotifyEmails} />
         </div>

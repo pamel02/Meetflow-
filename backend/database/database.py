@@ -98,6 +98,23 @@ def init_db(app):
         db.session.execute(text("CREATE INDEX IF NOT EXISTS ix_meetings_organization_id ON meetings (organization_id)"))
         db.session.commit()
 
+    organization_columns = {
+        column["name"] for column in inspect(db.engine).get_columns("organizations")
+    }
+    if "trial_started_at" not in organization_columns:
+        timestamp_type = "TIMESTAMP" if db.engine.dialect.name == "postgresql" else "DATETIME"
+        db.session.execute(text(
+            f"ALTER TABLE organizations ADD COLUMN trial_started_at {timestamp_type}"
+        ))
+        db.session.execute(text(
+            "UPDATE organizations SET trial_started_at = "
+            "(SELECT MIN(meetings.created_at) FROM meetings "
+            "WHERE meetings.organization_id = organizations.id) "
+            "WHERE EXISTS (SELECT 1 FROM meetings "
+            "WHERE meetings.organization_id = organizations.id)"
+        ))
+        db.session.commit()
+
     from models.Billing import Plan
     plan_definitions = (
         ("starter", "Starter", 1000, 5, 120),

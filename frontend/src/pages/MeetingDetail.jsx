@@ -85,6 +85,8 @@ export default function MeetingDetail() {
   useEffect(() => {
     if (
       meeting?.status === 'completed' &&
+      report &&
+      !report.locked &&
       notifyEmails.length > 0 &&
       !autoSendTriggeredRef.current
     ) {
@@ -102,7 +104,7 @@ export default function MeetingDetail() {
           notify.error(`Envoi automatique du compte rendu impossible : ${err.message}`);
         });
     }
-  }, [meeting?.status, notifyEmails, id, notify]);
+  }, [meeting?.status, report, notifyEmails, id, notify]);
 
   const setTab = (key) => setSearchParams({ onglet: key });
 
@@ -131,10 +133,17 @@ export default function MeetingDetail() {
   }, [id, notify]);
 
   useEffect(() => {
-    if (activeTab === 'compte-rendu' && meeting?.status === 'completed' && !report) loadReport();
+    if (meeting?.status === 'completed' && !report) loadReport();
     if (activeTab === 'segments') loadSegments();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab, meeting?.status]);
+
+  const unlockReport = () => navigate('/facturation', {
+    state: {
+      from: `/reunions/${id}?onglet=compte-rendu`,
+      reportUnlock: true,
+    },
+  });
 
   const handleStopRecording = async () => {
     try {
@@ -170,14 +179,26 @@ export default function MeetingDetail() {
   };
 
   const handleDownloadPdf = async (includeTranscript = false) => {
+    if (report?.locked) {
+      unlockReport();
+      return;
+    }
     try {
       await exportService.downloadPdf(id, includeTranscript);
     } catch (err) {
+      if (err.status === 402) {
+        unlockReport();
+        return;
+      }
       notify.error(err.message);
     }
   };
 
   const handleExportJson = async () => {
+    if (report?.locked) {
+      unlockReport();
+      return;
+    }
     try {
       const data = await exportService.exportJson(id);
       const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
@@ -188,6 +209,10 @@ export default function MeetingDetail() {
       link.click();
       URL.revokeObjectURL(url);
     } catch (err) {
+      if (err.status === 402) {
+        unlockReport();
+        return;
+      }
       notify.error(err.message);
     }
   };
@@ -316,7 +341,7 @@ export default function MeetingDetail() {
             <Card className="p-6">
               <TranscriptTab meetingId={id} status={meeting.status} />
             </Card>
-            <SendReportPanel meetingId={id} ready={reportReady} />
+            <SendReportPanel meetingId={id} ready={reportReady} locked={Boolean(report?.locked)} onUnlock={unlockReport} />
           </div>
         )}
 
@@ -325,9 +350,9 @@ export default function MeetingDetail() {
             {reportLoading ? (
               <Loader label="Chargement du compte rendu..." />
             ) : (
-              <SummaryViewer report={report} pending={meeting.status !== 'completed'} />
+              <SummaryViewer report={report} pending={meeting.status !== 'completed'} onUnlock={unlockReport} />
             )}
-            <SendReportPanel meetingId={id} ready={reportReady} />
+            <SendReportPanel meetingId={id} ready={reportReady} locked={Boolean(report?.locked)} onUnlock={unlockReport} />
           </div>
         )}
 

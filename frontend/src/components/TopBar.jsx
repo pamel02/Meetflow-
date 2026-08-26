@@ -6,12 +6,11 @@ import { useLayout } from '../context/LayoutContext';
 const HEALTH_LABEL = { checking: 'Vérification…', ok: 'Système opérationnel', degraded: 'Service dégradé', unreachable: 'Backend indisponible' };
 
 export default function TopBar({ title }) {
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
   const health = useBackendHealth();
   const navigate = useNavigate();
   const { toggleSidebar } = useLayout();
   const initials = (user?.name || 'MF').split(' ').slice(0, 2).map((part) => part[0]).join('').toUpperCase();
-  const handleLogout = async () => { await logout(); navigate('/connexion'); };
   const dotTone = health.state === 'ok' ? 'bg-emerald-500' : health.state === 'checking' ? 'bg-amber-400' : 'bg-red-500';
 
   return (
@@ -23,7 +22,7 @@ export default function TopBar({ title }) {
       <div className="flex items-center gap-3">
         <div className="hidden items-center gap-2 rounded-full border border-liseret bg-fond px-3 py-2 text-xs font-medium text-encre-sourde sm:flex" title={JSON.stringify(health.components || {})}><span className={`h-2 w-2 rounded-full ${dotTone}`} />{HEALTH_LABEL[health.state]}</div>
         <button aria-label="Notifications" className="hidden h-10 w-10 items-center justify-center rounded-full text-encre-sourde hover:bg-surface-haute sm:flex"><svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/></svg></button>
-        <button onClick={handleLogout} title="Se déconnecter" className="flex items-center gap-2 rounded-full border border-liseret bg-white p-1 pr-2.5 shadow-sm hover:border-bordeaux-400"><span className="flex h-8 w-8 items-center justify-center rounded-full bg-bordeaux-500/10 text-xs font-bold text-bordeaux-700">{initials}</span><span className="hidden max-w-28 truncate text-xs font-semibold text-encre md:block">{user?.name || 'Compte'}</span></button>
+        <button onClick={() => navigate('/parametres')} title="Ouvrir les paramètres du compte" className="flex items-center gap-2 rounded-full border border-liseret bg-white p-1 pr-2.5 shadow-sm hover:border-bordeaux-400"><span className="flex h-8 w-8 items-center justify-center rounded-full bg-bordeaux-500/10 text-xs font-bold text-bordeaux-700">{initials}</span><span className="hidden max-w-28 truncate text-xs font-semibold text-encre md:block">{user?.name || 'Compte'}</span></button>
       </div>
     </header>
   );

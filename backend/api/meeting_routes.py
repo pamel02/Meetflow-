@@ -94,6 +94,12 @@ def reprocess_meeting(current_user, meeting_id: int):
     Utile pour tester un nouveau prompt ou un nouveau modèle.
     La transcription déjà stockée est réutilisée.
     """
+    from services.billing_service import BillingService
+
+    entitlement = BillingService.entitlement(current_user, "report")
+    if entitlement:
+        response, status = entitlement
+        return jsonify(response), status
     from services.organization_service import OrganizationService
     if not OrganizationService.can_organize(current_user):
         return jsonify({"error": "Votre rôle ne permet pas de retraiter une réunion."}), 403
