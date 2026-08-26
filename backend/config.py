@@ -30,6 +30,7 @@ class Config:
     OTP_EXPIRY_MINUTES = int(os.getenv("OTP_EXPIRY_MINUTES", "10"))
     OTP_RESEND_COOLDOWN_SECONDS = int(os.getenv("OTP_RESEND_COOLDOWN_SECONDS", "60"))
     OTP_MAX_ATTEMPTS = int(os.getenv("OTP_MAX_ATTEMPTS", "5"))
+    PUBLIC_APP_URL = os.getenv("PUBLIC_APP_URL", "http://localhost:5173").strip().rstrip("/")
 
     # --- Paiements Mobile Money (Riserva/Reeserva) ---
     RISERVA_BASE_URL = os.getenv("RISERVA_BASE_URL", "https://riserva.nalovan.cloud/api/v1").strip()

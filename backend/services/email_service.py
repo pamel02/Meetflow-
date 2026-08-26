@@ -13,16 +13,58 @@ logger = logging.getLogger(__name__)
 
 class EmailService:
 	@staticmethod
-	def send_organization_invitation(to_email: str, inviter_name: str, organization_name: str, role: str) -> dict:
+	def send_organization_invitation(to_email: str, inviter_name: str, organization_name: str, role: str, invitation_url: str) -> dict:
 		if not Config.SMTP_EMAIL or not Config.SMTP_PASSWORD:
 			return {"success": False, "message": "Configuration SMTP incomplète."}
+		safe_inviter = escape(inviter_name)
+		safe_organization = escape(organization_name)
+		safe_url = escape(invitation_url, quote=True)
+		role_label = {
+			"organizer": "Organisateur",
+			"member": "Membre",
+			"auditor": "Auditeur",
+		}.get(role, role.capitalize())
+		safe_role = escape(role_label)
 		email = EmailMessage()
 		email["From"] = f"MeetFlow <{Config.SMTP_EMAIL}>"
 		email["To"] = to_email
 		email["Subject"] = f"Invitation à rejoindre {organization_name} sur MeetFlow"
 		email.set_content(
-			f"{inviter_name} vous invite à rejoindre {organization_name} sur MeetFlow "
-			f"avec le rôle {role}. Créez votre compte avec cette adresse email ou connectez-vous."
+			"Bonjour,\n\n"
+			f"{inviter_name} vous invite à rejoindre l'espace entreprise {organization_name} sur MeetFlow.\n"
+			f"Rôle attribué : {role_label}.\n\n"
+			"Pour accepter l'invitation, ouvrez le lien suivant :\n"
+			f"{invitation_url}\n\n"
+			f"Utilisez obligatoirement l'adresse {to_email} pour créer votre compte ou vous connecter.\n"
+			"Vous accéderez ensuite directement à l'espace de votre entreprise.\n\n"
+			"Si vous n'attendiez pas cette invitation, vous pouvez ignorer ce message."
+		)
+		email.add_alternative(
+			f"""
+			<div style="margin:0;background:#f5f7fb;padding:36px 16px;font-family:Arial,sans-serif;color:#181a1f">
+			  <div style="max-width:600px;margin:0 auto;overflow:hidden;border:1px solid #e3e7f0;border-radius:20px;background:#ffffff;box-shadow:0 18px 50px rgba(16,24,40,.08)">
+			    <div style="background:#17208a;padding:28px 34px;color:#ffffff">
+			      <div style="font-size:20px;font-weight:800">MeetFlow</div>
+			      <div style="margin-top:6px;font-size:13px;color:rgba(255,255,255,.68)">Intelligence de réunion pour les entreprises</div>
+			    </div>
+			    <div style="padding:34px">
+			      <p style="margin:0 0 10px;font-size:13px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#263bd8">Invitation entreprise</p>
+			      <h1 style="margin:0;font-size:27px;line-height:1.25">Rejoignez {safe_organization}</h1>
+			      <p style="margin:18px 0 0;font-size:15px;line-height:1.7;color:#5d6375"><strong style="color:#181a1f">{safe_inviter}</strong> vous invite à collaborer dans l'espace MeetFlow de <strong style="color:#181a1f">{safe_organization}</strong>.</p>
+			      <div style="margin:24px 0;padding:16px 18px;border-radius:12px;background:#f5f7fb">
+			        <div style="font-size:12px;color:#71788a">Rôle attribué</div>
+			        <div style="margin-top:5px;font-size:16px;font-weight:700">{safe_role}</div>
+			      </div>
+			      <a href="{safe_url}" style="display:block;padding:15px 22px;border-radius:12px;background:#263bd8;color:#ffffff;text-align:center;text-decoration:none;font-size:15px;font-weight:700">Accepter l'invitation</a>
+			      <p style="margin:22px 0 0;font-size:13px;line-height:1.65;color:#71788a">Créez votre compte ou connectez-vous avec l'adresse <strong>{escape(to_email)}</strong>. Une autre adresse ne pourra pas rejoindre cet espace.</p>
+			      <p style="margin:22px 0 6px;font-size:12px;color:#8a90a0">Si le bouton ne fonctionne pas, copiez ce lien :</p>
+			      <p style="margin:0;word-break:break-all;font-size:12px;line-height:1.6"><a href="{safe_url}" style="color:#263bd8">{safe_url}</a></p>
+			    </div>
+			  </div>
+			  <p style="margin:18px auto 0;max-width:600px;text-align:center;font-size:11px;line-height:1.6;color:#8a90a0">Vous recevez cet e-mail parce qu'un administrateur MeetFlow a invité cette adresse. Si vous n'êtes pas concerné, ignorez simplement ce message.</p>
+			</div>
+			""",
+			subtype="html",
 		)
 		try:
 			with smtplib.SMTP(Config.SMTP_SERVER, Config.SMTP_PORT, timeout=30) as smtp:

@@ -19,6 +19,7 @@ import Team from './pages/Team';
 import Landing from './pages/Landing';
 import Billing from './pages/Billing';
 import ForgotPassword from './pages/ForgotPassword';
+import Invitation from './pages/Invitation';
 
 export default function App() {
   return (
@@ -28,6 +29,7 @@ export default function App() {
           <AuthProvider>
             <Routes>
               <Route path="/" element={<Landing />} />
+              <Route path="/invitation" element={<Invitation />} />
               <Route element={<PublicOnlyRoute />}>
                 <Route path="/connexion" element={<Login />} />
                 <Route path="/inscription" element={<Register />} />

@@ -9,6 +9,7 @@ def make_app(tmp_path):
         DATABASE_URL = f"sqlite:///{tmp_path / 'organizations.db'}"
         SQLALCHEMY_ECHO = False
         BILLING_ENFORCEMENT_ENABLED = False
+        PUBLIC_APP_URL = "https://meetflow.example.com"
 
     return create_app(TestConfig)
 
@@ -45,11 +46,25 @@ def test_only_admin_can_invite(tmp_path, monkeypatch):
     client = make_app(tmp_path).test_client()
     admin_headers = register_and_verify(client, monkeypatch, "admin@example.com")
     client.post("/api/organizations", headers=admin_headers, json={"name": "MeetFlow Team"})
-    monkeypatch.setattr(EmailService, "send_organization_invitation", staticmethod(lambda *_args: {"success": True}))
+    sent_invitation = {}
+    monkeypatch.setattr(
+        EmailService,
+        "send_organization_invitation",
+        staticmethod(
+            lambda *args: sent_invitation.update(args=args) or {"success": True}
+        ),
+    )
 
     invitation = client.post("/api/organizations/invitations", headers=admin_headers, json={"email": "member@example.com", "role": "member"})
     assert invitation.status_code == 201
     assert invitation.json["email_sent"] is True
+    assert sent_invitation["args"][:4] == (
+        "member@example.com", "admin", "MeetFlow Team", "member"
+    )
+    assert sent_invitation["args"][4].startswith(
+        "https://meetflow.example.com/invitation?"
+    )
+    assert "email=member%40example.com" in sent_invitation["args"][4]
 
     member_headers = register_and_verify(client, monkeypatch, "member@example.com")
     profile = client.get("/api/auth/me", headers=member_headers)

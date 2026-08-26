@@ -2,6 +2,9 @@
 
 import re
 from datetime import UTC, datetime
+from urllib.parse import urlencode
+
+from flask import current_app
 
 from database.database import db
 from models.Organization import Membership, Organization, OrganizationInvitation
@@ -100,7 +103,21 @@ class OrganizationService:
             invitation.accepted_at = datetime.now(UTC)
         db.session.commit()
 
-        delivery = EmailService.send_organization_invitation(email, user.name, membership.organization.name, role)
+        invitation_url = (
+            f"{current_app.config['PUBLIC_APP_URL']}/invitation?"
+            + urlencode({
+                "email": email,
+                "entreprise": membership.organization.name,
+                "role": role,
+            })
+        )
+        delivery = EmailService.send_organization_invitation(
+            email,
+            user.name,
+            membership.organization.name,
+            role,
+            invitation_url,
+        )
         return {
             "message": "Invitation envoyée." if delivery.get("success") else "Invitation enregistrée, mais l'email n'a pas pu être envoyé.",
             "invitation": invitation.to_dict(),

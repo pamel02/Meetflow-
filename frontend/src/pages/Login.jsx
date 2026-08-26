@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import AuthLayout from '../components/AuthLayout';
 import Button from '../components/Button';
 import Input from '../components/Input';
@@ -11,7 +11,10 @@ export default function Login() {
   const { login, sessionMessage, setSessionMessage } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const [email, setEmail] = useState('');
+  const [searchParams] = useSearchParams();
+  const invitedEmail = (searchParams.get('email') || '').trim().toLowerCase();
+  const invitationOrganization = searchParams.get('entreprise');
+  const [email, setEmail] = useState(invitedEmail);
   const [password, setPassword] = useState('');
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -37,12 +40,13 @@ export default function Login() {
 
   return (
     <AuthLayout mode="login" title="Connectez-vous à MeetFlow" description="Accédez à l’espace sécurisé de votre entreprise.">
+      {invitedEmail && <div className="mt-6 rounded-xl border border-bordeaux-400/25 bg-bordeaux-500/5 px-4 py-3 text-sm leading-relaxed text-bordeaux-900"><strong>Invitation {invitationOrganization ? `à rejoindre ${invitationOrganization}` : 'entreprise'} :</strong> connectez-vous avec l’adresse invitée. Votre accès sera rattaché automatiquement.</div>}
       {sessionMessage && <div role="status" className="mt-6 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">{sessionMessage}</div>}
       {location.state?.passwordResetMessage && <div role="status" className="mt-6 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">{location.state.passwordResetMessage}</div>}
       {location.state?.activationMessage && <div role="status" className="mt-6 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">{location.state.activationMessage}</div>}
 
       <form onSubmit={handleSubmit} className="mt-7 flex flex-col gap-5 rounded-2xl border border-liseret bg-white p-6 shadow-[0_18px_50px_rgba(16,24,40,0.07)]">
-        <Input label="Adresse email professionnelle" type="email" name="email" autoComplete="email" inputMode="email" autoCapitalize="none" spellCheck="false" autoFocus required disabled={loading} value={email} onChange={(event) => setEmail(event.target.value)} placeholder="vous@entreprise.com" />
+        <Input label="Adresse email professionnelle" type="email" name="email" autoComplete="email" inputMode="email" autoCapitalize="none" spellCheck="false" autoFocus required disabled={loading || Boolean(invitedEmail)} value={email} onChange={(event) => setEmail(event.target.value)} placeholder="vous@entreprise.com" hint={invitedEmail ? 'Cette adresse est liée à votre invitation.' : undefined} />
         <PasswordField label="Mot de passe" name="password" autoComplete="current-password" required disabled={loading} value={password} onChange={(event) => setPassword(event.target.value)} />
         <div className="-mt-2 text-right"><Link to="/mot-de-passe-oublie" className="text-xs font-semibold text-bordeaux-700 hover:text-bordeaux-800">Mot de passe oublié ?</Link></div>
 
