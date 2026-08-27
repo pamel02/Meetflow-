@@ -331,7 +331,7 @@ class BillingService:
         return {"received": True}, 200
 
     @classmethod
-    def entitlement(cls, user, kind, additional_seconds=0):
+    def entitlement(cls, user, kind, additional_seconds=0, meeting_id=None):
         """Autorise l'essai gratuit, puis protège les fonctions premium."""
         if not current_app.config.get("BILLING_ENFORCEMENT_ENABLED", False):
             return None
@@ -368,6 +368,18 @@ class BillingService:
                     "payment_required": True,
                     "trial_minutes": limit_minutes,
                 }, 402
+
+            if kind == "report" and meeting_id is not None:
+                first_meeting = Meeting.query.filter_by(
+                    organization_id=membership.organization_id
+                ).order_by(Meeting.created_at.asc(), Meeting.id.asc()).first()
+                trial_seconds = current_app.config.get("FREE_TRIAL_MINUTES", 10) * 60
+                if (
+                    first_meeting
+                    and first_meeting.id == meeting_id
+                    and (first_meeting.duration or 0) <= trial_seconds
+                ):
+                    return None
 
             code = "REPORT_PAYMENT_REQUIRED" if kind == "report" else "SUBSCRIPTION_REQUIRED"
             message = (

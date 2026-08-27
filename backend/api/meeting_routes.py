@@ -96,7 +96,7 @@ def reprocess_meeting(current_user, meeting_id: int):
     """
     from services.billing_service import BillingService
 
-    entitlement = BillingService.entitlement(current_user, "report")
+    entitlement = BillingService.entitlement(current_user, "report", meeting_id=meeting_id)
     if entitlement:
         response, status = entitlement
         return jsonify(response), status

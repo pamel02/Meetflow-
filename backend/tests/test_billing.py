@@ -142,7 +142,7 @@ def test_exhausted_minutes_require_a_new_payment_cycle(tmp_path, monkeypatch):
     assert renewed["transcription_quota_exhausted"] is False
 
 
-def test_free_user_can_try_one_meeting_but_report_is_locked(tmp_path, monkeypatch):
+def test_first_ten_minute_report_is_free_then_payment_is_required(tmp_path, monkeypatch):
     app = make_app(tmp_path)
     app.config["BILLING_ENFORCEMENT_ENABLED"] = True
     client = app.test_client()
@@ -169,15 +169,37 @@ def test_free_user_can_try_one_meeting_but_report_is_locked(tmp_path, monkeypatc
         )
         SummaryRepository.save_actions(meeting_id, [{"content": "Préparer le lancement"}])
 
-    preview = client.get(f"/api/report/{meeting_id}", headers=headers)
-    assert preview.status_code == 200
-    assert preview.json["locked"] is True
-    assert preview.json["preview"]["actions_count"] == 1
-    assert "summary" not in preview.json
-    assert "summary" not in client.get(f"/api/meetings/{meeting_id}", headers=headers).json["meeting"]
-    assert client.get(f"/api/summary/{meeting_id}", headers=headers).status_code == 402
+    report = client.get(f"/api/report/{meeting_id}", headers=headers)
+    assert report.status_code == 200
+    assert report.json["locked"] is False
+    assert report.json["summary"]["general_summary"].startswith("Le lancement")
+    assert "summary" in client.get(f"/api/meetings/{meeting_id}", headers=headers).json["meeting"]
+    assert client.get(f"/api/summary/{meeting_id}", headers=headers).status_code == 200
+    assert client.get(f"/api/export/json/{meeting_id}", headers=headers).status_code == 200
 
-    blocked_export = client.get(f"/api/export/json/{meeting_id}", headers=headers)
+    with app.app_context():
+        membership = Membership.query.first()
+        second_meeting = Meeting(
+            user_id=membership.user_id,
+            organization_id=membership.organization_id,
+            title="Deuxième rapport",
+            status="completed",
+            duration=60,
+        )
+        db.session.add(second_meeting)
+        db.session.commit()
+        second_meeting_id = second_meeting.id
+        SummaryRepository.save_summary(
+            second_meeting_id,
+            "Ce second rapport nécessite un paiement.",
+            [],
+            "Fin.",
+        )
+
+    locked_report = client.get(f"/api/report/{second_meeting_id}", headers=headers)
+    assert locked_report.status_code == 200
+    assert locked_report.json["locked"] is True
+    blocked_export = client.get(f"/api/export/json/{second_meeting_id}", headers=headers)
     assert blocked_export.status_code == 402
     assert blocked_export.json["code"] == "REPORT_PAYMENT_REQUIRED"
 

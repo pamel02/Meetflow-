@@ -26,7 +26,7 @@ class ExportService:
 
         from services.billing_service import BillingService
 
-        entitlement = BillingService.entitlement(user, "report")
+        entitlement = BillingService.entitlement(user, "report", meeting_id=meeting_id)
         if entitlement:
             payload, status = entitlement
             return payload, status, None
@@ -80,7 +80,7 @@ class ExportService:
 
         from services.billing_service import BillingService
 
-        entitlement = BillingService.entitlement(user, "report")
+        entitlement = BillingService.entitlement(user, "report", meeting_id=meeting_id)
         if entitlement:
             return entitlement
 

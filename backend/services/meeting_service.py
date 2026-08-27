@@ -80,7 +80,7 @@ class MeetingService:
             data["transcript"] = transcript.to_dict()
         from services.billing_service import BillingService
 
-        if summary and not BillingService.entitlement(user, "report"):
+        if summary and not BillingService.entitlement(user, "report", meeting_id=meeting_id):
             data["summary"] = summary.to_dict()
 
         return {"meeting": data}, 200

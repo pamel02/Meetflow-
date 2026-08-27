@@ -19,10 +19,10 @@ class SummaryService:
         return meeting, None
 
     @staticmethod
-    def _check_report_access(user):
+    def _check_report_access(user, meeting_id):
         from services.billing_service import BillingService
 
-        return BillingService.entitlement(user, "report")
+        return BillingService.entitlement(user, "report", meeting_id=meeting_id)
 
     @staticmethod
     def get_transcript(user, meeting_id: int) -> tuple[dict, int]:
@@ -46,7 +46,7 @@ class SummaryService:
         meeting, err = SummaryService._check_access(user, meeting_id)
         if err:
             return err
-        entitlement = SummaryService._check_report_access(user)
+        entitlement = SummaryService._check_report_access(user, meeting_id)
         if entitlement:
             return entitlement
 
@@ -66,7 +66,7 @@ class SummaryService:
         _, err = SummaryService._check_access(user, meeting_id)
         if err:
             return err
-        entitlement = SummaryService._check_report_access(user)
+        entitlement = SummaryService._check_report_access(user, meeting_id)
         if entitlement:
             return entitlement
 
@@ -78,7 +78,7 @@ class SummaryService:
         _, err = SummaryService._check_access(user, meeting_id)
         if err:
             return err
-        entitlement = SummaryService._check_report_access(user)
+        entitlement = SummaryService._check_report_access(user, meeting_id)
         if entitlement:
             return entitlement
 
@@ -90,7 +90,7 @@ class SummaryService:
         _, err = SummaryService._check_access(user, meeting_id)
         if err:
             return err
-        entitlement = SummaryService._check_report_access(user)
+        entitlement = SummaryService._check_report_access(user, meeting_id)
         if entitlement:
             return entitlement
 
@@ -102,7 +102,7 @@ class SummaryService:
         _, err = SummaryService._check_access(user, meeting_id)
         if err:
             return err
-        entitlement = SummaryService._check_report_access(user)
+        entitlement = SummaryService._check_report_access(user, meeting_id)
         if entitlement:
             return entitlement
 
@@ -126,7 +126,7 @@ class SummaryService:
         questions  = SummaryRepository.get_questions(meeting_id)
         risks      = SummaryRepository.get_risks(meeting_id)
 
-        entitlement = SummaryService._check_report_access(user)
+        entitlement = SummaryService._check_report_access(user, meeting_id)
         if entitlement:
             summary_text = summary.general_summary if summary else ""
             excerpt = (summary_text or "").strip()
