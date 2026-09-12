@@ -48,8 +48,9 @@ def submit_background(function, *args):
 
 # Délai de polling (secondes) pour attendre les transcriptions en cours
 _POLL_INTERVAL = 5
-# Timeout maximum d'attente après end_meeting (secondes) : 20 min
-_WAIT_TIMEOUT  = 1200
+# Timeout maximum d'attente après end_meeting (secondes) : 5 min
+# Après ce délai, le rapport est généré avec les segments disponibles.
+_WAIT_TIMEOUT  = 300
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -195,47 +196,59 @@ def _summary_pipeline(meeting_id: int) -> None:
         _status("Fusion des transcriptions", 20)
 
         transcribed_segs = AudioRepository.find_transcribed(meeting_id)
+        all_segs         = AudioRepository.find_by_meeting(meeting_id)
 
         if transcribed_segs:
             texts = [s.transcript_text for s in transcribed_segs if s.transcript_text]
-            if not texts:
-                raise RuntimeError("Les segments transcrits ne contiennent pas de texte.")
+            if texts:
+                # ── 3. Fusion (déduplication du chevauchement 5s) ─────────────
+                full_transcript = merge_segment_transcripts(texts)
 
-            # ── 3. Fusion (déduplication du chevauchement 5s) ─────────────
-            full_transcript = merge_segment_transcripts(texts)
+                # Ajouter une note si des segments sont manquants
+                if len(transcribed_segs) < len(all_segs):
+                    missing = len(all_segs) - len(transcribed_segs)
+                    full_transcript = (
+                        f"[Note : {missing} segment(s) audio n'ont pas pu être transcrits "
+                        f"et sont absents de ce compte rendu.]\n\n" + full_transcript
+                    )
+            else:
+                # Segments existent mais sans texte
+                full_transcript = (
+                    "[Transcription indisponible : les segments audio ont été reçus "
+                    "mais leur contenu n'a pas pu être extrait. "
+                    "Le compte rendu est généré à partir des métadonnées de la réunion.]"
+                )
+        else:
+            # Aucun segment transcrit : cherche une transcription existante
+            existing_transcript = SummaryRepository.get_transcript(meeting_id)
+            if existing_transcript and existing_transcript.full_text:
+                full_transcript = existing_transcript.full_text.strip()
+            else:
+                # Aucune transcription du tout : rapport minimal
+                full_transcript = (
+                    "[Aucune transcription disponible pour cette réunion. "
+                    "Le compte rendu est généré à partir des métadonnées disponibles.]"
+                )
+                logger.warning(
+                    f"[Meeting {meeting_id}] Aucun segment transcrit. "
+                    "Rapport minimal généré."
+                )
 
-            # Durée totale
-            total_duration = sum(s.duration or 0 for s in transcribed_segs)
+        # Durée et langue
+        total_duration = sum(s.duration or 0 for s in (transcribed_segs or all_segs))
+        if total_duration:
             MeetingRepository.update(meeting, duration=int(total_duration))
 
-            # Langue majoritaire détectée
-            languages = [s.detected_language for s in transcribed_segs if s.detected_language]
-            dominant_lang = max(set(languages), key=languages.count) if languages else "fr"
+        languages = [s.detected_language for s in (transcribed_segs or []) if s.detected_language]
+        dominant_lang = max(set(languages), key=languages.count) if languages else "fr"
 
-            SummaryRepository.save_transcript(
-                meeting_id, full_transcript, language=dominant_lang
-            )
-            logger.info(
-                f"[Meeting {meeting_id}] Transcription complète : "
-                f"{len(full_transcript)} chars, {len(transcribed_segs)} segments, "
-                f"langue={dominant_lang}."
-            )
-        else:
-            # Une réunion importée ou de démonstration peut déjà posséder une
-            # transcription complète sans AudioSegment associé.
-            existing_transcript = SummaryRepository.get_transcript(meeting_id)
-            full_transcript = (
-                existing_transcript.full_text.strip()
-                if existing_transcript and existing_transcript.full_text
-                else ""
-            )
-            if not full_transcript:
-                raise RuntimeError("Aucune transcription disponible pour le bilan.")
-            dominant_lang = existing_transcript.language or "fr"
-            logger.info(
-                f"[Meeting {meeting_id}] Utilisation de la transcription complète "
-                f"existante ({len(full_transcript)} chars, langue={dominant_lang})."
-            )
+        SummaryRepository.save_transcript(meeting_id, full_transcript, language=dominant_lang)
+        logger.info(
+            f"[Meeting {meeting_id}] Transcription fusionnée : "
+            f"{len(full_transcript)} chars, {len(transcribed_segs or [])} segments transcrits "
+            f"sur {len(all_segs)}, langue={dominant_lang}."
+        )
+
 
         # ── 4. Titre automatique ──────────────────────────────────────────
         _status("Génération du titre", 35, MeetingStatus.ANALYZING)
