@@ -90,20 +90,19 @@ class BillingService:
         quota_minutes = (
             subscription.plan.transcription_minutes
             if subscription
-            else current_app.config.get("FREE_TRIAL_MINUTES", 10)
+            else current_app.config.get("FREE_TRIAL_MINUTES", 24000)
         )
+        remaining = max(round(quota_minutes - used_minutes, 1), 0)
         usage = {
             "members": Membership.query.filter_by(organization_id=membership.organization_id).count(),
             "transcription_minutes": used_minutes,
-            "transcription_minutes_remaining": max(round(quota_minutes - used_minutes, 1), 0),
-            "transcription_quota_exhausted": bool(subscription and used_minutes >= quota_minutes),
-            "trial_meeting_available": bool(
-                not subscription and membership.organization.trial_started_at is None
-            ),
-            "trial_started": bool(
-                not subscription and membership.organization.trial_started_at is not None
-            ),
+            "transcription_minutes_remaining": remaining,
+            "transcription_quota_exhausted": bool(used_minutes >= quota_minutes),
+            # Essai : toujours disponible tant que le quota n'est pas épuisé
+            "trial_meeting_available": bool(not subscription and remaining > 0),
+            "trial_started": bool(not subscription),
         }
+
         return {
             "subscription": subscription.to_dict() if subscription else None,
             "usage": usage,
@@ -344,30 +343,31 @@ class BillingService:
 
         subscription = cls._active_subscription(membership.organization_id)
         if not subscription or subscription.status != "ACTIVE":
-            if kind == "meeting":
-                if membership.organization.trial_started_at is None:
-                    return None
-                return {
-                    "error": "Votre réunion d'essai a déjà été utilisée. Choisissez une offre pour continuer.",
-                    "code": "FREE_TRIAL_USED",
-                    "payment_required": True,
-                }, 402
+            # ── Essai gratuit basé sur le volume audio ────────────────────────
+            # On calcule le total de secondes audio déjà consommées
+            used_seconds = db.session.query(
+                func.coalesce(func.sum(AudioSegment.duration), 0)
+            ).join(Meeting, Meeting.id == AudioSegment.meeting_id).filter(
+                Meeting.organization_id == membership.organization_id
+            ).scalar() or 0
 
-            if kind == "audio":
-                used_seconds = db.session.query(
-                    func.coalesce(func.sum(AudioSegment.duration), 0)
-                ).join(Meeting, Meeting.id == AudioSegment.meeting_id).filter(
-                    Meeting.organization_id == membership.organization_id
-                ).scalar() or 0
-                limit_minutes = current_app.config.get("FREE_TRIAL_MINUTES", 10)
-                if used_seconds + max(float(additional_seconds or 0), 0) <= limit_minutes * 60:
+            limit_minutes = current_app.config.get("FREE_TRIAL_MINUTES", 24000)
+            limit_seconds = limit_minutes * 60
+
+            # Pour les réunions et l'audio : autoriser tant que le quota n'est pas atteint
+            if kind in {"meeting", "audio"}:
+                additional = max(float(additional_seconds or 0), 0)
+                if used_seconds + additional <= limit_seconds:
                     return None
+                # Quota épuisé
+                limit_hours = round(limit_minutes / 60)
                 return {
-                    "error": f"Les {limit_minutes} minutes de votre essai gratuit sont épuisées. Choisissez une offre pour continuer.",
+                    "error": f"Vos {limit_hours} heures d'essai gratuit sont épuisées. Choisissez une offre pour continuer.",
                     "code": "FREE_TRIAL_LIMIT_REACHED",
                     "payment_required": True,
                     "trial_minutes": limit_minutes,
                 }, 402
+
 
             if kind == "report" and meeting_id is not None:
                 first_meeting = Meeting.query.filter_by(

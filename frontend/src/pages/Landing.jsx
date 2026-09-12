@@ -80,21 +80,22 @@ export default function Landing() {
           <div className="absolute left-1/2 top-12 h-[520px] w-[920px] -translate-x-1/2 rounded-full bg-bordeaux-500/10 blur-3xl" />
           <div className="relative mx-auto max-w-7xl">
             <div className="mx-auto max-w-4xl text-center">
-              <div className="inline-flex max-w-full items-center justify-center gap-2 rounded-full border border-bordeaux-400/25 bg-white px-3.5 py-2 text-center text-xs font-semibold text-bordeaux-700 shadow-sm"><span className="h-2 w-2 shrink-0 rounded-full bg-emerald-500" /><span>L’intelligence des réunions pour les entreprises</span></div>
+              <div className="inline-flex max-w-full items-center justify-center gap-2 rounded-full border border-bordeaux-400/25 bg-white px-3.5 py-2 text-center text-xs font-semibold text-bordeaux-700 shadow-sm"><span className="h-2 w-2 shrink-0 rounded-full bg-emerald-500" /><span>400 heures d'essai gratuit · Sans carte bancaire</span></div>
               <h1 className="mt-7 text-4xl font-extrabold leading-[1.05] tracking-[-0.055em] text-encre sm:text-6xl lg:text-7xl">Vos réunions deviennent des décisions qui avancent.</h1>
               <p className="mx-auto mt-6 max-w-2xl text-base leading-relaxed text-encre-sourde sm:text-lg">MeetFlow capture, transcrit et structure chaque échange pour transformer vos réunions en actions claires, responsables et suivies.</p>
               <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
-                <Link to={authenticated ? appTarget : '/inscription'} className="inline-flex items-center justify-center gap-2 rounded-xl bg-bordeaux-700 px-6 py-3.5 text-sm font-semibold text-white shadow-[0_12px_28px_rgba(38,59,216,0.24)] transition hover:-translate-y-0.5 hover:bg-bordeaux-800">{authenticated ? 'Accéder à mon espace' : 'Créer mon espace entreprise'}<ArrowIcon /></Link>
+                <Link to={authenticated ? appTarget : '/inscription'} className="inline-flex items-center justify-center gap-2 rounded-xl bg-bordeaux-700 px-6 py-3.5 text-sm font-semibold text-white shadow-[0_12px_28px_rgba(38,59,216,0.24)] transition hover:-translate-y-0.5 hover:bg-bordeaux-800">{authenticated ? 'Accéder à mon espace' : 'Commencer gratuitement'}<ArrowIcon /></Link>
                 <a href="#produit" className="inline-flex items-center justify-center rounded-xl border border-liseret-clair bg-white px-6 py-3.5 text-sm font-semibold text-encre-douce shadow-sm hover:border-bordeaux-400 hover:text-bordeaux-700">Découvrir le produit</a>
               </div>
-              <p className="mt-4 text-xs text-encre-sourde">Configuration guidée · Vérification sécurisée · Aucune carte bancaire requise</p>
+              <p className="mt-4 text-xs text-encre-sourde">400h d'enregistrement incluses · Configuration guidée · Aucune carte bancaire requise</p>
+
             </div>
             <ProductPreview />
           </div>
         </section>
 
         <section className="border-y border-liseret bg-white px-5 py-7 sm:px-8">
-          <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-center gap-x-10 gap-y-4 text-sm font-semibold text-encre-sourde"><TrustItem text="Transcription automatique" /><TrustItem text="Analyse par NVIDIA NIM" /><TrustItem text="Espaces entreprise isolés" /><TrustItem text="Comptes rendus structurés" /></div>
+        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-center gap-x-10 gap-y-4 text-sm font-semibold text-encre-sourde"><TrustItem text="400h d'essai gratuit" /><TrustItem text="Transcription automatique" /><TrustItem text="Analyse par NVIDIA NIM" /><TrustItem text="Comptes rendus structurés" /></div>
         </section>
 
         <section id="produit" className="scroll-mt-20 px-5 py-20 sm:px-8 lg:py-28">
@@ -111,7 +112,7 @@ export default function Landing() {
         <section id="tarifs" className="scroll-mt-20 bg-white px-5 py-20 sm:px-8 lg:py-28">
           <div className="mx-auto max-w-7xl">
             <SectionHeading eyebrow="Tarifs de lancement" title="Une offre adaptée à la taille de votre équipe." text="Commencez avec l’essentiel, puis augmentez vos capacités lorsque vos usages se développent." />
-            <div className="mt-5 flex justify-center"><span className="rounded-full border border-liseret bg-fond px-3.5 py-2 text-xs font-medium text-encre-sourde">Facturation mensuelle par entreprise · Paiement Mobile Money prochainement disponible</span></div>
+            <div className="mt-5 flex justify-center"><span className="rounded-full border border-liseret bg-fond px-3.5 py-2 text-xs font-medium text-encre-sourde">400h d'essai gratuit incluses · Puis facturation mensuelle par entreprise · Paiement Mobile Money</span></div>
             <div className="mt-12 grid gap-5 lg:grid-cols-3">
               {plans.map((plan) => {
                 const code = plan.name.toLowerCase();
