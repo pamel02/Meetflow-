@@ -90,7 +90,7 @@ class BillingService:
         quota_minutes = (
             subscription.plan.transcription_minutes
             if subscription
-            else current_app.config.get("FREE_TRIAL_MINUTES", 24000)
+            else current_app.config.get("FREE_TRIAL_MINUTES", 4000)
         )
         remaining = max(round(quota_minutes - used_minutes, 1), 0)
         usage = {
@@ -351,7 +351,7 @@ class BillingService:
                 Meeting.organization_id == membership.organization_id
             ).scalar() or 0
 
-            limit_minutes = current_app.config.get("FREE_TRIAL_MINUTES", 24000)
+            limit_minutes = current_app.config.get("FREE_TRIAL_MINUTES", 4000)
             limit_seconds = limit_minutes * 60
 
             # Pour les réunions et l'audio : autoriser tant que le quota n'est pas atteint
