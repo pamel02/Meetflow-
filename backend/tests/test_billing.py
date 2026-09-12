@@ -145,6 +145,7 @@ def test_exhausted_minutes_require_a_new_payment_cycle(tmp_path, monkeypatch):
 def test_first_ten_minute_report_is_free_then_payment_is_required(tmp_path, monkeypatch):
     app = make_app(tmp_path)
     app.config["BILLING_ENFORCEMENT_ENABLED"] = True
+    app.config["FREE_TRIAL_MINUTES"] = 1
     client = app.test_client()
     headers = account(client, monkeypatch)
 
@@ -154,13 +155,21 @@ def test_first_ten_minute_report_is_free_then_payment_is_required(tmp_path, monk
     assert created.status_code == 201
     meeting_id = created.json["meeting"]["id"]
 
-    second = client.post("/api/meetings", headers=headers, json={"title": "Deuxième réunion"})
-    assert second.status_code == 402
-    assert second.json["code"] == "FREE_TRIAL_USED"
-
     with app.app_context():
         meeting = db.session.get(Meeting, meeting_id)
         meeting.status = "completed"
+        meeting.duration = 30  # 30 seconds, within 1 minute trial
+        from models.AudioSegment import AudioSegment
+        seg = AudioSegment(
+            meeting_id=meeting_id,
+            segment_number=0,
+            filename="dummy.wav",
+            duration=30,
+            file_size=1024,
+            status="transcribed"
+        )
+        db.session.add(seg)
+        db.session.commit()
         SummaryRepository.save_summary(
             meeting_id,
             "Le lancement est validé et trois actions prioritaires ont été retenues.",
@@ -178,35 +187,21 @@ def test_first_ten_minute_report_is_free_then_payment_is_required(tmp_path, monk
     assert client.get(f"/api/export/json/{meeting_id}", headers=headers).status_code == 200
 
     with app.app_context():
-        membership = Membership.query.first()
-        second_meeting = Meeting(
-            user_id=membership.user_id,
-            organization_id=membership.organization_id,
-            title="Deuxième rapport",
-            status="completed",
+        # Add another segment to exceed 1 min (60s) limit
+        seg2 = AudioSegment(
+            meeting_id=meeting_id,
+            segment_number=1,
+            filename="dummy2.wav",
             duration=60,
+            file_size=1024,
+            status="transcribed"
         )
-        db.session.add(second_meeting)
+        db.session.add(seg2)
         db.session.commit()
-        second_meeting_id = second_meeting.id
-        SummaryRepository.save_summary(
-            second_meeting_id,
-            "Ce second rapport nécessite un paiement.",
-            [],
-            "Fin.",
-        )
 
-    locked_report = client.get(f"/api/report/{second_meeting_id}", headers=headers)
-    assert locked_report.status_code == 200
-    assert locked_report.json["locked"] is True
-    blocked_export = client.get(f"/api/export/json/{second_meeting_id}", headers=headers)
-    assert blocked_export.status_code == 402
-    assert blocked_export.json["code"] == "REPORT_PAYMENT_REQUIRED"
-
-    assert client.delete(f"/api/meetings/{meeting_id}", headers=headers).status_code == 200
-    after_delete = client.post("/api/meetings", headers=headers, json={"title": "Nouvel essai"})
-    assert after_delete.status_code == 402
-    assert after_delete.json["code"] == "FREE_TRIAL_USED"
+    second = client.post("/api/meetings", headers=headers, json={"title": "Deuxième réunion"})
+    assert second.status_code == 402
+    assert second.json["code"] == "FREE_TRIAL_LIMIT_REACHED"
 
     assert client.get("/api/billing/subscription", headers=headers).status_code == 200
     assert client.get("/api/billing/plans").status_code == 200

@@ -57,6 +57,29 @@ export default function Dashboard() {
     if (searchParams.get('nouvelle') === '1' && canOrganize) setModalOpen(true);
   }, [searchParams, canOrganize]);
 
+  const [creatingQuick, setCreatingQuick] = useState(false);
+
+  const handleQuickMeeting = async () => {
+    setCreatingQuick(true);
+    try {
+      const now = new Date();
+      const dateStr = now.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
+      const timeStr = now.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+      const defaultTitle = `Point du ${dateStr} à ${timeStr}`;
+
+      const data = await meetingService.create(defaultTitle, '');
+      navigate(`/reunions/${data.meeting.id}?onglet=enregistrement&demarrer=1`);
+    } catch (error) {
+      if (error.status === 402) {
+        navigate('/facturation', { state: { subscriptionRequired: true, from: '/app' } });
+        return;
+      }
+      notify.error(error.message || 'Impossible de créer la réunion rapide.');
+    } finally {
+      setCreatingQuick(false);
+    }
+  };
+
   const handleCreate = async (title, description, notifyEmails = []) => {
     let data;
     try {
@@ -73,7 +96,7 @@ export default function Dashboard() {
       saveNotifyEmails(data.meeting.id, notifyEmails);
     }
     closeNewMeeting();
-    navigate(`/reunions/${data.meeting.id}`);
+    navigate(`/reunions/${data.meeting.id}?onglet=enregistrement&demarrer=1`);
   };
 
   const handleDelete = async (meeting) => {
@@ -100,14 +123,23 @@ export default function Dashboard() {
       <TopBar title="Vue d’ensemble" />
       <main className="min-h-0 flex-1 overflow-y-auto px-4 py-7 sm:px-6 md:px-8">
         <div className="mx-auto w-full max-w-[1480px]">
-        {!loading && !billing?.subscription && <div className="mb-6 flex flex-col gap-4 rounded-2xl border border-bordeaux-400/30 bg-gradient-to-r from-bordeaux-500/8 to-white px-5 py-4 sm:flex-row sm:items-center sm:justify-between"><div><p className="text-sm font-bold text-encre">{billing?.usage?.trial_meeting_available ? 'Votre premier rapport est offert' : 'Votre rapport gratuit a été utilisé'}</p><p className="mt-1 text-xs leading-relaxed text-encre-sourde">{billing?.usage?.trial_meeting_available ? 'Enregistrez une réunion de 10 minutes maximum, puis consultez et téléchargez gratuitement son rapport complet.' : 'À partir du deuxième rapport, choisissez une offre pour poursuivre vos réunions et télécharger vos comptes rendus.'}</p></div>{billing?.usage?.trial_meeting_available ? <Button size="sm" onClick={() => setModalOpen(true)}>Créer mon rapport gratuit</Button> : <Button size="sm" onClick={() => navigate('/facturation')}>Voir les offres</Button>}</div>}
+        {!loading && !billing?.subscription && <div className="mb-6 flex flex-col gap-4 rounded-2xl border border-bordeaux-400/30 bg-gradient-to-r from-bordeaux-500/8 to-white px-5 py-4 sm:flex-row sm:items-center sm:justify-between"><div><p className="text-sm font-bold text-encre">{billing?.usage?.trial_meeting_available ? '4 000 minutes d’essai gratuit incluses' : 'Votre quota gratuit est utilisé'}</p><p className="mt-1 text-xs leading-relaxed text-encre-sourde">{billing?.usage?.trial_meeting_available ? 'Enregistrez vos réunions immédiatement, vos comptes rendus et bilans IA sont générés automatiquement.' : 'Choisissez une offre pour renouveler vos minutes de transcription.'}</p></div>{billing?.usage?.trial_meeting_available ? <Button size="sm" loading={creatingQuick} onClick={handleQuickMeeting}>⚡ Lancer ma première réunion</Button> : <Button size="sm" onClick={() => navigate('/facturation')}>Voir les offres</Button>}</div>}
         <div className="mb-8 flex flex-col justify-between gap-5 lg:flex-row lg:items-end">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.12em] text-bordeaux-700">Espace de travail</p>
             <h2 className="mt-2 text-3xl font-bold tracking-[-0.04em] text-encre sm:text-4xl">Pilotez vos réunions</h2>
-            <p className="mt-2 max-w-2xl text-sm leading-relaxed text-encre-sourde">Enregistrez, transcrivez et transformez chaque échange en décisions directement exploitables.</p>
+            <p className="mt-2 max-w-2xl text-sm leading-relaxed text-encre-sourde">Enregistrez en 1 clic, laissez l’IA structurer vos échanges et téléchargez vos comptes rendus.</p>
           </div>
-          {canOrganize && <Button size="lg" onClick={() => setModalOpen(true)}><span className="text-lg leading-none">+</span> Nouvelle réunion</Button>}
+          {canOrganize && (
+            <div className="flex flex-wrap items-center gap-3">
+              <Button size="lg" loading={creatingQuick} onClick={handleQuickMeeting} className="bg-emerald-600 hover:bg-emerald-700 shadow-[0_8px_20px_rgba(16,185,129,0.25)]">
+                <span className="text-lg leading-none">⚡</span> Réunion Rapide (1 Clic)
+              </Button>
+              <Button size="lg" variant="secondary" onClick={() => setModalOpen(true)}>
+                <span className="text-lg leading-none">+</span> Planifier
+              </Button>
+            </div>
+          )}
         </div>
         {loadError && (
           <div className="mb-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
@@ -147,11 +179,20 @@ export default function Dashboard() {
           <Loader label="Chargement des reunions..." />
         ) : meetings.length === 0 ? (
           <div className="rounded-2xl border border-liseret bg-surface px-6 py-16 text-center shadow-sm">
-            <p className="font-display text-lg text-encre">Aucune reunion pour le moment</p>
+            <p className="font-display text-lg font-bold text-encre">Aucune réunion pour le moment</p>
             <p className="mt-1 text-sm text-encre-sourde">
-              Creez votre premiere reunion pour demarrer un enregistrement.
+              Démarrez un premier enregistrement en 1 clic pour tester l'intelligence MeetFlow.
             </p>
-            {canOrganize && <Button className="mt-5" onClick={() => setModalOpen(true)}>Nouvelle reunion</Button>}
+            {canOrganize && (
+              <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+                <Button size="lg" loading={creatingQuick} onClick={handleQuickMeeting} className="bg-emerald-600 hover:bg-emerald-700 shadow-[0_8px_20px_rgba(16,185,129,0.25)]">
+                  ⚡ Lancer ma première réunion
+                </Button>
+                <Button size="lg" variant="secondary" onClick={() => setModalOpen(true)}>
+                  + Planifier
+                </Button>
+              </div>
+            )}
           </div>
         ) : (
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">

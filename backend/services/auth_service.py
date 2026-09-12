@@ -133,6 +133,7 @@ class AuthService:
         EmailVerificationRepository.commit()
         from services.organization_service import OrganizationService
         OrganizationService.accept_pending_invitations(user)
+        OrganizationService.ensure_default_organization(user)
         token_data = generate_token(user.id)
         return {
             "message": "Votre adresse email est vérifiée.",
@@ -251,12 +252,15 @@ class AuthService:
 
         from services.organization_service import OrganizationService
         OrganizationService.accept_pending_invitations(user)
+        OrganizationService.ensure_default_organization(user)
 
         token_data = generate_token(user.id)
         return {"message": "Connexion réussie.", "user": user.to_dict(), **token_data}, 200
 
     @staticmethod
     def get_me(user) -> tuple[dict, int]:
+        from services.organization_service import OrganizationService
+        OrganizationService.ensure_default_organization(user)
         return {"user": user.to_dict()}, 200
 
     @staticmethod

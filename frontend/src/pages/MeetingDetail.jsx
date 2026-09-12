@@ -80,6 +80,21 @@ export default function MeetingDetail() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [progress]);
 
+  const autoStartedRef = useRef(false);
+
+  useEffect(() => {
+    if (
+      searchParams.get('demarrer') === '1' &&
+      !autoStartedRef.current &&
+      meeting &&
+      ['pending', 'recording'].includes(meeting.status) &&
+      recorder.recordingState === 'idle'
+    ) {
+      autoStartedRef.current = true;
+      recorder.start();
+    }
+  }, [searchParams, meeting, recorder]);
+
   // Envoi automatique du PDF des que la reunion est terminee, si des
   // destinataires ont ete renseignes a la creation (voir NewMeetingModal).
   useEffect(() => {

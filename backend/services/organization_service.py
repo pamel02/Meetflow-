@@ -20,17 +20,48 @@ class OrganizationService:
         return Membership.query.filter_by(user_id=user.id).first()
 
     @staticmethod
+    def ensure_default_organization(user):
+        """Assure que l'utilisateur a un espace entreprise afin d'éviter tout blocage onboarding."""
+        membership = OrganizationService.membership_for(user)
+        if membership:
+            return membership
+        org_name = f"Espace de {user.name}" if user.name else "Mon Espace"
+        organization = Organization(
+            name=org_name,
+            country="Cameroun",
+            created_by=user.id,
+        )
+        db.session.add(organization)
+        db.session.flush()
+        membership = Membership(organization_id=organization.id, user_id=user.id, role="admin")
+        db.session.add(membership)
+        db.session.commit()
+        return membership
+
+    @staticmethod
     def can_organize(user) -> bool:
         membership = OrganizationService.membership_for(user)
         return bool(membership and membership.role in {"admin", "organizer"})
 
     @staticmethod
     def create(user, data):
-        if OrganizationService.membership_for(user):
-            return {"error": "Vous appartenez déjà à une entreprise."}, 409
         name = (data.get("name") or "").strip()
         if len(name) < 2 or len(name) > 160:
             return {"error": "Le nom de l'entreprise doit contenir entre 2 et 160 caractères."}, 400
+
+        membership = OrganizationService.membership_for(user)
+        if membership:
+            # Mise à jour transparente de l'espace existant (auto-créé)
+            org = membership.organization
+            org.name = name
+            if "sector" in data:
+                org.sector = (data.get("sector") or "").strip()[:100] or None
+            if "company_size" in data:
+                org.company_size = (data.get("company_size") or "").strip()[:30] or None
+            if "country" in data:
+                org.country = (data.get("country") or "").strip()[:80] or None
+            db.session.commit()
+            return {"message": "Espace entreprise mis à jour.", "organization": org.to_dict(), "role": membership.role}, 201
 
         organization = Organization(
             name=name,
