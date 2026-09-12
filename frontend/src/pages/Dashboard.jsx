@@ -132,7 +132,7 @@ export default function Dashboard() {
           </div>
           {canOrganize && (
             <div className="flex flex-wrap items-center gap-3">
-              <Button size="lg" loading={creatingQuick} onClick={handleQuickMeeting} className="bg-emerald-600 hover:bg-emerald-700 shadow-[0_8px_20px_rgba(16,185,129,0.25)]">
+              <Button size="lg" loading={creatingQuick} onClick={handleQuickMeeting}>
                 <span className="text-lg leading-none">⚡</span> Réunion Rapide (1 Clic)
               </Button>
               <Button size="lg" variant="secondary" onClick={() => setModalOpen(true)}>
@@ -185,8 +185,8 @@ export default function Dashboard() {
             </p>
             {canOrganize && (
               <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
-                <Button size="lg" loading={creatingQuick} onClick={handleQuickMeeting} className="bg-emerald-600 hover:bg-emerald-700 shadow-[0_8px_20px_rgba(16,185,129,0.25)]">
-                  ⚡ Lancer ma première réunion
+                <Button size="lg" loading={creatingQuick} onClick={handleQuickMeeting}>
+                  <span className="text-lg leading-none">⚡</span> Lancer ma première réunion
                 </Button>
                 <Button size="lg" variant="secondary" onClick={() => setModalOpen(true)}>
                   + Planifier
