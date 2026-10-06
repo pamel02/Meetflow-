@@ -51,10 +51,15 @@ class RiservaClient:
             headers["Content-Type"] = "application/json"
         if idempotency_key:
             headers["Idempotency-Key"] = idempotency_key
+        base = current_app.config['RISERVA_BASE_URL'].rstrip('/')
+        endpoint = path.lstrip('/')
+        if not endpoint.startswith('api/v1/') and not base.endswith('/api/v1'):
+            endpoint = f"api/v1/{endpoint}"
+
         try:
             response = requests.request(
                 method,
-                f"{current_app.config['RISERVA_BASE_URL'].rstrip('/')}/{path.lstrip('/')}",
+                f"{base}/{endpoint}",
                 json=payload,
                 headers=headers,
                 timeout=current_app.config.get("RISERVA_TIMEOUT", 30),
@@ -67,17 +72,17 @@ class RiservaClient:
             error = data.get("error") or {}
             message = data.get("message") or (error.get("message") if isinstance(error, dict) else error) or "Le paiement a été refusé par le fournisseur."
             code = error.get("code", "PAYMENT_PROVIDER_REJECTED") if isinstance(error, dict) else "PAYMENT_PROVIDER_REJECTED"
-            raise RiservaError(str(message), 502, code, data)
+            raise RiservaError(str(message), response.status_code if response.status_code >= 400 else 502, code, data)
         return data.get("data", data)
 
     @classmethod
     def quote(cls, payload):
-        return cls._request("POST", "/payments/quote", payload)
+        return cls._request("POST", "payments/quote", payload)
 
     @classmethod
     def collect(cls, payload, idempotency_key):
-        return cls._request("POST", "/payments/collect", payload, idempotency_key)
+        return cls._request("POST", "payments/collect", payload, idempotency_key)
 
     @classmethod
     def get_payment(cls, payment_id):
-        return cls._request("GET", f"/payments/{payment_id}")
+        return cls._request("GET", f"payments/{payment_id}")
